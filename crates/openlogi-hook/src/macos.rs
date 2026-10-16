@@ -442,8 +442,17 @@ fn scale_scroll_event(event: &CGEvent, scale: f64) {
         reason = "scaled line count is a small integer"
     )]
     let scaled_lines = scaled_fixed.round() as i64;
+    // Safari fullscreen ignores a wheel event whose integer line delta is 0,
+    // even when the 16.16 field still has distance. A light detent arrives as
+    // line=±1 and fixed=±0.1; scaling by 60/14 makes that 0.43, which rounds
+    // to 0 and blanks the page. Keep at least the original sign.
     if lines != 0 {
-        event.set_integer_value_field(VERTICAL.line, scaled_lines);
+        let line_out = if scaled_lines != 0 {
+            scaled_lines
+        } else {
+            lines.signum()
+        };
+        event.set_integer_value_field(VERTICAL.line, line_out);
     }
     if lines != 0 || fixed != 0.0 {
         event.set_double_value_field(VERTICAL.fixed, scaled_fixed);
@@ -942,6 +951,18 @@ mod tests {
             event.get_double_value_field(VERTICAL.point),
             event.get_double_value_field(VERTICAL.fixed),
         )
+    }
+
+    #[test]
+    fn scaling_a_light_detent_does_not_zero_the_line_field() {
+        let event = wheel_notch(1);
+        event.set_double_value_field(VERTICAL.fixed, 0.1);
+        super::scale_scroll_event(&event, 60.0 / 14.0);
+        assert_ne!(
+            event.get_integer_value_field(VERTICAL.line),
+            0,
+            "Safari fullscreen drops a wheel event whose line delta was rounded to zero"
+        );
     }
 
     #[test]
