@@ -425,7 +425,7 @@ no_pairing_session_is_active = "当前没有正在进行的配对会话。"
 [permissions]
 accessibility_permission_required = "需要「辅助功能」权限"
 accessibility_permission_description = "OpenLogi 通过系统的「辅助功能」权限捕获鼠标按键（后退／前进／手势按钮）并执行你绑定的操作。DPI、SmartShift 等直接与设备通信的功能不受影响。"
-accessibility_agent_instructions = "后台代理进程负责处理鼠标输入，因此请在「辅助功能」列表中启用「OpenLogi Agent」。如果已启用，请移除现有条目，然后重新添加。"
+accessibility_agent_instructions = "后台代理进程负责处理鼠标输入，因此请在「辅助功能」或「设备控制与数据访问」列表中启用「MSWL Agent」。已经打开的「OpenLogi Agent」是原版，对这个构建无效。"
 open_system_settings_to_grant_access = "打开系统设置授权"
 permission_applies_without_restart = "授权后会自动生效，无需重启。"
 not_now_use_dpi_and_other_features_only = "稍后再说（仅使用 DPI 等功能）"

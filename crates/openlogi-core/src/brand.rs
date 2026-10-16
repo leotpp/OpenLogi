@@ -29,7 +29,7 @@ pub const DISTRIBUTION: &str = "mswl";
 
 /// Revision of this local line on the current upstream release. Bump it
 /// when shipping another local build without taking a newer upstream tag.
-pub const LOCAL_REVISION: u32 = 1;
+pub const LOCAL_REVISION: u32 = 2;
 
 /// `0.8.14+mswl.1` — upstream version plus the local distribution.
 #[must_use]
@@ -47,14 +47,14 @@ pub fn version_label() -> String {
 /// compositor sees, the launcher that groups it, and the frontmost backend that
 /// self-identifies OpenLogi can never disagree. The `.desktop` file carries its
 /// own literal copy (it can't reference Rust) — keep the two in sync.
-pub const APP_ID: &str = "org.openlogi.openlogi";
+pub const APP_ID: &str = "org.mswl.openlogi";
 
 /// The always-on agent's bundle identifier — the process that owns the hook and
 /// holds the Accessibility grant, shipped as a nested login item.
-pub const AGENT_ID: &str = "org.openlogi.agent";
+pub const AGENT_ID: &str = "org.mswl.agent";
 
 /// The Actions Ring overlay's bundle identifier, the second nested login item.
-pub const OVERLAY_ID: &str = "org.openlogi.overlay";
+pub const OVERLAY_ID: &str = "org.mswl.overlay";
 
 /// The agent's macOS launchd service label: the `Label` in the app bundle's
 /// embedded `Contents/Library/LaunchAgents/<label>.plist`, what `SMAppService`
@@ -69,7 +69,7 @@ pub const OVERLAY_ID: &str = "org.openlogi.overlay";
 /// would make the migration's "is this job ours or the old file's?" question
 /// unanswerable. Once shipped, this value is frozen the same way: renaming it
 /// orphans the registration users already approved in Login Items.
-pub const AGENT_SERVICE_LABEL: &str = "org.openlogi.agent.service";
+pub const AGENT_SERVICE_LABEL: &str = "org.mswl.agent.service";
 
 /// What a dev build appends to every identifier above, so a local build can
 /// never claim a shipped TCC grant and System Settings shows which of the two
@@ -89,7 +89,7 @@ pub fn dev_id(id: &str) -> String {
 
 /// The app's display name: the outer bundle's `CFBundleName` and
 /// `CFBundleDisplayName`, and the root the helpers' names are formed from.
-pub const APP_NAME: &str = "OpenLogi";
+pub const APP_NAME: &str = "MSWL OpenLogi";
 
 /// The GUI's executable, as cargo builds it and as the macOS bundle and the
 /// Linux packages ship it. The helpers' executables are [`Helper::executable`].
@@ -146,8 +146,8 @@ impl Helper {
     #[must_use]
     pub const fn display_name(self) -> &'static str {
         match self {
-            Self::Agent => "OpenLogi Agent",
-            Self::Overlay => "OpenLogi Overlay",
+            Self::Agent => "MSWL Agent",
+            Self::Overlay => "MSWL Overlay",
         }
     }
 
@@ -409,11 +409,11 @@ mod tests {
     fn helper_bundles_are_named_after_their_display_names() {
         assert_eq!(
             Helper::Agent.bundle_dir(),
-            "Contents/Library/LoginItems/OpenLogi Agent.app"
+            "Contents/Library/LoginItems/MSWL Agent.app"
         );
         assert_eq!(
             Helper::Overlay.dev_bundle_dir(),
-            "Contents/Library/LoginItems/OpenLogi Overlay Dev.app"
+            "Contents/Library/LoginItems/MSWL Overlay Dev.app"
         );
         // Bundles built before the helpers took their display names are
         // still found, after the current layouts.
@@ -426,12 +426,12 @@ mod tests {
     #[test]
     fn a_helper_bundle_root_is_three_levels_above_its_executable() {
         let packaged = Path::new(
-            "/Applications/OpenLogi.app/Contents/Library/LoginItems/OpenLogi Agent.app/Contents/MacOS/openlogi-agent",
+            "/Applications/MSWL OpenLogi.app/Contents/Library/LoginItems/MSWL Agent.app/Contents/MacOS/openlogi-agent",
         );
         assert_eq!(
             helper_bundle_root(packaged),
             Some(Path::new(
-                "/Applications/OpenLogi.app/Contents/Library/LoginItems/OpenLogi Agent.app"
+                "/Applications/MSWL OpenLogi.app/Contents/Library/LoginItems/MSWL Agent.app"
             ))
         );
         let dev = Path::new(

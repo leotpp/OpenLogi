@@ -425,7 +425,7 @@ no_pairing_session_is_active = "No pairing session is active."
 [permissions]
 accessibility_permission_required = "Accessibility permission required"
 accessibility_permission_description = "OpenLogi uses Accessibility permission to capture mouse buttons, including Back, Forward, and the gesture button, and run their assigned actions. DPI and SmartShift are unaffected."
-accessibility_agent_instructions = "Enable “OpenLogi Agent” in the Accessibility list because the background agent handles mouse input. If it is already enabled, remove the existing entry, then add it again."
+accessibility_agent_instructions = "Enable “MSWL Agent” in Accessibility or Device Control. The existing “OpenLogi Agent” row is the upstream app and does not cover this build."
 open_system_settings_to_grant_access = "Open System Settings to grant access"
 permission_applies_without_restart = "Takes effect automatically without a restart."
 not_now_use_dpi_and_other_features_only = "Not now (use DPI and other features only)"

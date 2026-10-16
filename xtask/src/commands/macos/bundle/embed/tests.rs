@@ -86,11 +86,11 @@ fn shipped_helper_plists_declare_the_shared_icon() {
 fn agent_service_labels_are_frozen() {
     assert_eq!(
         agent_service_label(Channel::Production),
-        "org.openlogi.agent.service"
+        "org.mswl.agent.service"
     );
     assert_eq!(
         agent_service_label(Channel::Dev),
-        "org.openlogi.agent.service-dev"
+        "org.mswl.agent.service-dev"
     );
 }
 
@@ -101,8 +101,8 @@ fn agent_service_labels_are_frozen() {
 #[test]
 fn agent_launch_plist_targets_the_channel_helper_and_keeps_alive() {
     for (channel, helper_dir) in [
-        (Channel::Production, "OpenLogi Agent.app"),
-        (Channel::Dev, "OpenLogi Agent Dev.app"),
+        (Channel::Production, "MSWL Agent.app"),
+        (Channel::Dev, "MSWL Agent Dev.app"),
     ] {
         let content = agent_launch_plist(channel).unwrap();
 
