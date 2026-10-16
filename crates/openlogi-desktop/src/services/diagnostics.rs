@@ -46,7 +46,7 @@ fn app_info(state: Option<&AppState>, running_from_bundle: bool) -> AppInfo {
         "release"
     };
     AppInfo {
-        gui_version: env!("CARGO_PKG_VERSION").to_string(),
+        gui_version: openlogi_core::brand::version_label(),
         build_profile: build_profile.to_string(),
         agent_version: status.map(|s| s.agent_version.clone()),
         protocol_gui: PROTOCOL_VERSION,

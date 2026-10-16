@@ -88,6 +88,27 @@ pub struct DeviceCapturePlan {
 }
 
 impl DeviceCapturePlan {
+    /// Leave single-action Back/Forward on the OS hook instead of HID++.
+    ///
+    /// A diverted side button is dead for as long as this device's input
+    /// reports are delivered to the other open of the node — observed on
+    /// macOS when `AppleUserHIDEventDriver` and the agent both hold the
+    /// Bluetooth HID device. The hook can still run the binding, and fails
+    /// open to the native click when it cannot tell who pressed it. Gesture
+    /// and wheel-hold bindings stay diverted: they need raw XY or raw wheel,
+    /// which the tap does not provide.
+    pub(crate) fn keep_side_buttons_on_hook(&mut self) {
+        self.target.spec.divert_buttons.retain(|(_, button)| {
+            let hook_owned = matches!(button, ButtonId::Back | ButtonId::Forward)
+                && self
+                    .dispatch
+                    .bindings
+                    .get(button)
+                    .is_some_and(|binding| matches!(binding, Binding::Single(_)));
+            !hook_owned
+        });
+    }
+
     /// Hand the `0x1b04` controls in `owned` to another session on the same
     /// device: they leave every divert set of this plan, and the dispatch map
     /// keeps resolving them so a press the other session forwards still finds

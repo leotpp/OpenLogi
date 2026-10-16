@@ -231,6 +231,12 @@ pub struct ScrollInputHandle {
 }
 
 impl ScrollInputHandle {
+    /// Whether finite smooth scrolling is currently enabled.
+    #[must_use]
+    pub fn smooth_scroll_enabled(&self) -> bool {
+        self.preferences.smooth_scroll_enabled()
+    }
+
     /// Queue one ordinary wheel impulse from the current OS-hook thread.
     ///
     /// Pixel input, zero/non-finite distance, a full queue, or an unavailable

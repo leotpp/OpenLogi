@@ -19,6 +19,27 @@ pub const HELP_URL: &str = "https://github.com/AprilNEA/OpenLogi#readme";
 /// The "latest release" page.
 pub const RELEASES_URL: &str = "https://github.com/AprilNEA/OpenLogi/releases/latest";
 
+/// Local distribution stamped on top of the upstream crate version.
+///
+/// Crate versions stay equal to upstream so a merge of `upstream/master`
+/// does not fight a workspace-wide version bump. The About page, agent
+/// status, and macOS bundle version show [`version_label`] instead, so a
+/// 马上未来 build is distinguishable from an official OpenLogi release.
+pub const DISTRIBUTION: &str = "mswl";
+
+/// Revision of this local line on the current upstream release. Bump it
+/// when shipping another local build without taking a newer upstream tag.
+pub const LOCAL_REVISION: u32 = 1;
+
+/// `0.8.14+mswl.1` — upstream version plus the local distribution.
+#[must_use]
+pub fn version_label() -> String {
+    format!(
+        "{}+{DISTRIBUTION}.{LOCAL_REVISION}",
+        env!("CARGO_PKG_VERSION")
+    )
+}
+
 /// The application identifier: the Wayland xdg-toplevel `app_id` (and X11
 /// `WM_CLASS`) the GUI advertises, the root of the macOS bundle-id family
 /// (`org.openlogi.agent`, `org.openlogi.openlogi-dev`), and the value the Linux

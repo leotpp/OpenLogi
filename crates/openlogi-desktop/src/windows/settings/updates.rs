@@ -164,7 +164,10 @@ fn update_hero(updater: &Entity<Updater>, cx: &mut App) -> gpui::Div {
                                 .child(
                                     div()
                                         .font_weight(FontWeight::SEMIBOLD)
-                                        .child(concat!("OpenLogi ", env!("CARGO_PKG_VERSION"))),
+                                        .child(format!(
+                                    "OpenLogi {}",
+                                    openlogi_core::brand::version_label()
+                                )),
                                 )
                                 .children(pill.map(|tag| tag.small().rounded_full())),
                         )

@@ -121,7 +121,7 @@ fn embed_helper(
     let info_dst = helper.component.info_plist(app, channel);
     fs_err::copy(&info_src, &info_dst)
         .with_context(|| format!("could not write the {label} Info.plist"))?;
-    stamp_bundle_version(&info_dst, env!("CARGO_PKG_VERSION"))?;
+    stamp_bundle_version(&info_dst, &openlogi_core::brand::version_label())?;
 
     let resources = bundle.join("Contents/Resources");
     fs_err::create_dir_all(&resources)

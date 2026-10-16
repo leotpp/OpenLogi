@@ -15,7 +15,8 @@ use openlogi_core::binding::{
 };
 use openlogi_core::config::KeyTrigger;
 use openlogi_hook::{
-    EventDevice, EventDisposition, Hook, HookEvent, KeyEvent, MouseEvent, source_is_remappable,
+    EventDevice, EventDisposition, Hook, HookEvent, KeyEvent, MouseEvent, ScrollDelta,
+    source_is_remappable,
 };
 use tracing::{info, warn};
 
@@ -196,6 +197,33 @@ fn button_source_may_remap(device: Option<&EventDevice>) -> bool {
     }
 }
 
+/// Whether this press may be remapped.
+///
+/// Attributed Logitech buttons follow [`button_source_may_remap`]. On macOS 27
+/// a Bluetooth side button often arrives with sender id 0; claiming it is
+/// safe only for Back/Forward, and only while the agent has published that
+/// exactly one mouse is online. Anything else stays native.
+fn button_may_remap(id: ButtonId, device: Option<&EventDevice>) -> bool {
+    if button_source_may_remap(device) {
+        return true;
+    }
+    cfg!(target_os = "macos")
+        && openlogi_hook::unattributed_side_buttons()
+        && matches!(id, ButtonId::Back | ButtonId::Forward)
+        && device_is_unattributed(device)
+}
+
+fn device_is_unattributed(device: Option<&EventDevice>) -> bool {
+    match device {
+        None => true,
+        Some(device) => {
+            !device.is_trackpad_like()
+                && device.vendor_id.is_none()
+                && device.product_name.as_deref().is_none_or(str::is_empty)
+        }
+    }
+}
+
 /// Whether a wheel event may be replaced by host-side smooth output.
 ///
 /// Native trackpad/pixel gestures always stay untouched. macOS additionally
@@ -204,6 +232,30 @@ fn button_source_may_remap(device: Option<&EventDevice>) -> bool {
 /// wheel events through the same policy as button remapping.
 fn scroll_source_may_intercept(from_trackpad: bool, device: Option<&EventDevice>) -> bool {
     !from_trackpad && button_source_may_remap(device)
+}
+
+/// What the tap should do with one wheel event.
+///
+/// Smooth scrolling still replaces the event: the worker has to emit a
+/// phased stream the native notch cannot carry. A plain sensitivity change
+/// does not. On macOS that replacement is applied to the native event in
+/// place (`openlogi_hook::set_vertical_scroll_scale`), so a notch the
+/// quantizer would have rounded to zero — or a synthetic post macOS 27
+/// never delivers — cannot leave the page stuck.
+fn scroll_disposition(
+    from_trackpad: bool,
+    device: Option<&EventDevice>,
+    delta: ScrollDelta,
+    scroll: &ScrollInputHandle,
+) -> EventDisposition {
+    if !scroll_source_may_intercept(from_trackpad, device) {
+        return EventDisposition::PassThrough;
+    }
+    #[cfg(target_os = "macos")]
+    if !scroll.smooth_scroll_enabled() {
+        return EventDisposition::PassThrough;
+    }
+    queued_event_disposition(scroll.try_hook_scroll(delta))
 }
 
 /// Off-thread worker for bound actions so the tap callback never injects input.
@@ -246,7 +298,7 @@ fn handle_button(
     capture_safari_pid: impl FnOnce() -> Option<i32>,
 ) -> EventDisposition {
     // Primary L/R always pass through (suppressing them would brick the mouse).
-    if !id.is_os_hook_button() || !button_source_may_remap(device) {
+    if !id.is_os_hook_button() || !button_may_remap(id, device) {
         return EventDisposition::PassThrough;
     }
     // `try_read` only: a blocking read on the tap thread freezes every pointer
@@ -508,10 +560,7 @@ pub fn start(
                             ),
                         ));
                     }
-                    if scroll_source_may_intercept(from_trackpad, device.as_ref()) {
-                        return queued_event_disposition(scroll.try_hook_scroll(delta));
-                    }
-                    EventDisposition::PassThrough
+                    return scroll_disposition(from_trackpad, device.as_ref(), delta, &scroll);
                 }
             }
         }

@@ -131,7 +131,10 @@ fn build_bundle(
     // cargo-bundle writes the build's UTC timestamp as `CFBundleVersion`. The
     // app carries the crate version instead, like its helpers: Sparkle
     // compares an appcast's `sparkle:version`, the release version, against it.
-    info_plist::stamp_bundle_version(&app.join("Contents/Info.plist"), env!("CARGO_PKG_VERSION"))?;
+    info_plist::stamp_bundle_version(
+        &app.join("Contents/Info.plist"),
+        &openlogi_core::brand::version_label(),
+    )?;
     embed::embed_helpers(&root, &release_dir, &app, channel)?;
     embed::write_agent_launch_plist(&app, channel)?;
     embed::embed_cli(&release_dir, &app)?;

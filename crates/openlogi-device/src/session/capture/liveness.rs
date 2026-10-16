@@ -7,7 +7,13 @@ use tokio::sync::Notify;
 use tokio::time::Instant;
 
 /// A channel must be wholly idle for this long before capture probes it.
-pub(super) const IDLE_INTERVAL: Duration = Duration::from_secs(20);
+///
+/// macOS is shorter: a Bluetooth HID++ open and `AppleUserHIDEventDriver`
+/// share one node, and a dead input-report path leaves diverted buttons as
+/// dead air until this probe replaces the channel. Four seconds of silence
+/// plus two failed pings is still well above a normal HID++ round trip.
+pub(super) const IDLE_INTERVAL: Duration =
+    Duration::from_secs(if cfg!(target_os = "macos") { 4 } else { 20 });
 
 /// Consecutive all-silent probes after which capture replaces the channel.
 const SILENT_STRIKES_BEFORE_RESTART: u8 = 2;

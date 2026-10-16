@@ -622,7 +622,43 @@ impl Orchestrator {
         let key = self.current_key();
         self.publish_hook_maps(self.hook_maps_for(key));
         self.publish_scroll_inversion(key);
+        self.publish_macos_hook_policy();
         self.publish_device_runtime();
+    }
+
+    /// macOS input policy that must not wait for a HID++ round trip.
+    ///
+    /// Non-smooth vertical sensitivity scales the native wheel event in the
+    /// tap. Side-button clicks with no sender id are claimed only while one
+    /// mouse is online, so the hook can run a binding the HID++ channel did
+    /// not see.
+    fn publish_macos_hook_policy(&self) {
+        let scale = if self.config.app_settings.smooth_scroll {
+            1.0
+        } else {
+            self.config
+                .app_settings
+                .vertical_scroll_sensitivity
+                .scroll_multiplier()
+        };
+        openlogi_hook::set_vertical_scroll_scale(scale);
+        let one_mouse = self
+            .devices
+            .iter()
+            .filter(|dev| {
+                dev.online
+                    && dev.kind != DeviceKind::Keyboard
+                    && dev.kind != DeviceKind::Camera
+                    && self.config.device_enabled(&dev.config_key)
+                    && dev
+                        .capabilities
+                        .is_some_and(|caps| caps.buttons && caps.pointer)
+            })
+            .count()
+            == 1;
+        openlogi_hook::set_unattributed_side_buttons(
+            cfg!(target_os = "macos") && self.os_mouse_hook_available && one_mouse,
+        );
     }
 
     /// Tell the capture layer whether to reverse the wheel for the selected
@@ -756,6 +792,9 @@ impl Orchestrator {
                 rearm_generation,
                 self.os_mouse_hook_available,
             );
+            if cfg!(target_os = "macos") && dev.kind != DeviceKind::Keyboard {
+                plan.keep_side_buttons_on_hook();
+            }
             plan.dispatch.pointer_target = pointer_target;
             plan.dispatch.invert_wheel = wheel_inverted(&self.config, dev);
             plan.target.spec.divert_main_wheel =

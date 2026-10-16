@@ -360,7 +360,10 @@ fn run_tap_callback(
         // scroll (never a trackpad) is the only thing software inversion may
         // touch.
         let invert = crate::scroll_inversion() && wheel_scroll_to_invert(&hook_event);
-        dispatch(cb, hook_event, invert, event)
+        let scale = crate::vertical_scroll_scale();
+        let scale_native =
+            (scale - 1.0).abs() > f64::EPSILON && wheel_scroll_to_invert(&hook_event);
+        dispatch(cb, hook_event, invert, scale_native.then_some(scale), event)
     }));
     if let Ok(disposition) = result {
         disposition
@@ -384,15 +387,69 @@ fn dispatch(
     cb: &dyn Fn(HookEvent) -> EventDisposition,
     hook_event: HookEvent,
     invert: bool,
+    scale: Option<f64>,
     event: &CGEvent,
 ) -> CallbackResult {
     let delivery = Delivery::run(hook_event, invert, cb);
-    if delivery.invert_native {
-        invert_scroll_event(event);
+    if delivery.disposition == EventDisposition::PassThrough {
+        // Scale before inversion. Both touch the same fields; writing the
+        // line field first and the finer fields after keeps a fractional
+        // scaled distance from being rebuilt as an integer line.
+        if let Some(scale) = scale {
+            scale_scroll_event(event, scale);
+        }
+        if delivery.invert_native {
+            invert_scroll_event(event);
+        }
     }
     match delivery.disposition {
         EventDisposition::PassThrough => CallbackResult::Keep,
         EventDisposition::Suppress => CallbackResult::Drop,
+    }
+}
+
+/// Multiply the vertical distance of a detented wheel event, in place.
+///
+/// Continuous (pixel) events are left alone: those are trackpad-like or
+/// already-smoothed streams the sensitivity control must not touch. A
+/// detented notch keeps its native unit — line, 16.16 fixed, and point —
+/// so a sub-line tick still reaches the desktop instead of being swallowed
+/// and reposted as zero.
+fn scale_scroll_event(event: &CGEvent, scale: f64) {
+    use core_graphics::event::EventField;
+    if event.get_integer_value_field(EventField::SCROLL_WHEEL_EVENT_IS_CONTINUOUS) != 0 {
+        return;
+    }
+    let lines = event.get_integer_value_field(VERTICAL.line);
+    let fixed = event.get_double_value_field(VERTICAL.fixed);
+    let point = event.get_double_value_field(VERTICAL.point);
+    if lines == 0 && fixed == 0.0 && point == 0.0 {
+        return;
+    }
+    let scaled_fixed = if fixed != 0.0 {
+        fixed * scale
+    } else {
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "per-event line deltas are small integers"
+        )]
+        {
+            lines as f64 * scale
+        }
+    };
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "scaled line count is a small integer"
+    )]
+    let scaled_lines = scaled_fixed.round() as i64;
+    if lines != 0 {
+        event.set_integer_value_field(VERTICAL.line, scaled_lines);
+    }
+    if lines != 0 || fixed != 0.0 {
+        event.set_double_value_field(VERTICAL.fixed, scaled_fixed);
+    }
+    if point != 0.0 {
+        event.set_double_value_field(VERTICAL.point, point * scale);
     }
 }
 
@@ -887,6 +944,27 @@ mod tests {
         )
     }
 
+    #[test]
+    fn in_place_scale_keeps_a_sub_line_notch() {
+        let source = CGEventSource::new(CGEventSourceStateID::Private)
+            .expect("CGEventSourceCreate must succeed");
+        let event = CGEvent::new_scroll_event(source, ScrollEventUnit::LINE, 1, 0, 0, 0)
+            .expect("CGEventCreateScrollWheelEvent must succeed");
+        event.set_double_value_field(VERTICAL.fixed, 0.11);
+        super::scale_scroll_event(&event, 60.0 / 14.0);
+        let fixed = event.get_double_value_field(VERTICAL.fixed);
+        assert!(
+            fixed > 0.4,
+            "a light detent must still carry distance after scaling, got {fixed}"
+        );
+        assert_eq!(
+            event.get_integer_value_field(
+                core_graphics::event::EventField::SCROLL_WHEEL_EVENT_IS_CONTINUOUS
+            ),
+            0
+        );
+    }
+
     /// Whether every vertical field of a [`wheel_notch`] now points down. The
     /// notch starts positive in all of them, so this holds after exactly one
     /// reversal: none leaves it positive, and a second would restore it.
@@ -916,6 +994,7 @@ mod tests {
             },
             hook_event,
             invert,
+            None,
             &event,
         );
         (seen.get(), result, event)

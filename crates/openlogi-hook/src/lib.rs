@@ -27,7 +27,7 @@
 
 use std::cfg_select;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use thiserror::Error;
 
@@ -140,6 +140,47 @@ pub fn set_scroll_inversion(inverted: bool) {
 #[must_use]
 pub fn scroll_inversion() -> bool {
     INVERT_SCROLL.load(Ordering::Relaxed)
+}
+
+/// Vertical wheel-distance multiplier applied in place on macOS.
+///
+/// `1.0` means the native event is left alone. Any other finite positive
+/// value scales a detented Logitech wheel without suppressing it: swallowing
+/// the event and reposting a synthetic one drops sub-line notches, and on
+/// macOS 27 that synthetic event is sometimes never delivered.
+static SCROLL_SCALE_BITS: AtomicU64 = AtomicU64::new(0x3FF0_0000_0000_0000); // 1.0f64
+
+/// Publish the in-place vertical scroll multiplier. Non-finite or non-positive
+/// values are ignored and the multiplier stays at 1×.
+pub fn set_vertical_scroll_scale(scale: f64) {
+    if scale.is_finite() && scale > 0.0 {
+        SCROLL_SCALE_BITS.store(scale.to_bits(), Ordering::Relaxed);
+    }
+}
+
+/// The multiplier [`set_vertical_scroll_scale`] last published. `1.0` when
+/// nothing has been published.
+#[must_use]
+pub fn vertical_scroll_scale() -> f64 {
+    f64::from_bits(SCROLL_SCALE_BITS.load(Ordering::Relaxed))
+}
+
+/// Whether an unattributed Back/Forward click may be remapped.
+///
+/// macOS 27 often delivers those buttons with sender id 0. The hook may claim
+/// them only while the agent has exactly one online mouse, so a second device
+/// cannot inherit the first mouse's binding.
+static UNATTRIBUTED_SIDE_BUTTONS: AtomicBool = AtomicBool::new(false);
+
+/// Allow or withdraw the single-mouse fallback for sender-less side buttons.
+pub fn set_unattributed_side_buttons(enabled: bool) {
+    UNATTRIBUTED_SIDE_BUTTONS.store(enabled, Ordering::Relaxed);
+}
+
+/// Whether [`set_unattributed_side_buttons`] is currently on.
+#[must_use]
+pub fn unattributed_side_buttons() -> bool {
+    UNATTRIBUTED_SIDE_BUTTONS.load(Ordering::Relaxed)
 }
 
 /// Flip the vertical delta of a scroll [`MouseEvent`], leaving every other
